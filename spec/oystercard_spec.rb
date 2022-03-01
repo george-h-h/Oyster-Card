@@ -14,16 +14,11 @@ describe Oystercard do
     it "top up raises exception if new balance would exceed limit" do
       expect {subject.top_up(91)}.to raise_error("Max balance of £90 reached")
     end
-
-    it "deducts money" do
-      subject.top_up(50)
-      expect(subject.deduct(10)).to eq(40)
-    end
   end
 
   it "supports touch in" do
     subject.top_up(25)
-    subject.touch_in
+    subject.touch_in("origin")
     expect(subject).to be_in_journey
   end
 
@@ -33,12 +28,36 @@ describe Oystercard do
 
   it "supports touch out" do
     subject.top_up(25)
-    subject.touch_in
-    subject.touch_out
+    subject.touch_in("origin")
+    subject.touch_out("destination")
     expect(subject).not_to be_in_journey
   end
 
-  it "touch in raises exception if balance is less than £1" do
-    expect {subject.touch_in}.to raise_error("Must have at least minimum balance to touch in")
+  it "touch in raises exception if balance is less than minimum fare" do
+    expect {subject.touch_in("origin")}.to raise_error("Must have at least minimum fare in balance to touch in")
+  end
+
+  it "expects fare to be taken out of balance after touching out" do
+    expect {subject.touch_out("destination")}.to change{subject.balance}.by (-Oystercard::MINIMUM_FARE)
+  end
+
+  let(:station){ double :station }
+
+  it "records entry station" do    
+    subject.top_up(20)
+    subject.touch_in(station)
+    expect(subject.entry_station).to eq station
+  end
+
+  it "checks that journey list is empty by default" do
+    expect(subject.print_journeys).to be_empty
+  end
+
+  it "records journey history" do
+    subject.top_up(10)
+    subject.touch_in("origin")
+    subject.touch_out("destination")
+    expect(subject.print_journeys).to match_array(["origin"=>"destination"])
+    # expect(subject.print_journeys).to eq([{"origin"=>"destination"}])
   end
 end
